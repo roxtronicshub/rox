@@ -1055,6 +1055,31 @@ canvas{
         box-shadow: none;
         border-top: 0;
         min-width: 0;
+        background: transparent;
+        text-align: center;
+    }
+
+    .navbar-right .dropdown-menu > li > a,
+    .sticky_navigation .nav .dropdown-menu > li > a {
+        color: #e6e6e6;
+        font-size: 14px;
+        padding: 8px 20px;
+    }
+
+    .navbar-right .dropdown-menu > li > a:hover,
+    .navbar-right .dropdown-menu > li > a:focus,
+    .sticky_navigation .nav .dropdown-menu > li > a:hover {
+        color: #E91E63;
+        background: transparent;
+    }
+
+    .navbar-right .dropdown-menu > li {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .navbar-right .open .dropdown-menu > li > a {
+        padding: 8px 15px;
     }
 }
 
