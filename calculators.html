@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plant Calculators | Vikas Raikwar</title>
+<meta name="description" content="Everyday plant calculators: motor load, power factor correction, contactor selection and wire size.">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+<link href="https://fonts.googleapis.com/css?family=Poppins:400,600,700" rel="stylesheet">
+<style>
+:root{--pink:#E91E63;--ink:#212121;--mut:#6b6b6b;--line:#e4e4e4;--bg:#fff;--panel:#f6f6f7}
+*{box-sizing:border-box}
+body{margin:0;font-family:Poppins,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+a{color:inherit}
+header{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;box-shadow:0 3px 5px rgba(0,0,0,.12)}
+.logo{font-weight:800;letter-spacing:3px;text-transform:uppercase;text-decoration:none;font-size:20px}
+.logo:hover{color:var(--pink)}
+header .back{font-size:14px;text-decoration:none;color:var(--mut)}
+header .back:hover{color:var(--pink)}
+main{max-width:980px;margin:0 auto;padding:32px 20px 60px}
+h1{font-size:28px;margin:0 0 4px}
+.sub{color:var(--mut);margin:0 0 24px;font-size:15px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px 20px;border-bottom:1px solid var(--line);margin-bottom:28px}
+.tabs a{padding:10px 0;text-decoration:none;color:var(--mut);font-weight:600;font-size:14px;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs a:hover{color:var(--ink)}
+.tabs a.on{color:var(--pink);border-bottom-color:var(--pink)}
+.tabs a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+section{display:none}
+.blk{display:contents}
+.blk+.blk h2{margin-top:24px}
+section.on{display:grid;grid-template-columns:1fr 1fr;gap:32px}
+h2{font-size:20px;margin:0 0 14px;grid-column:1/-1}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+label{display:block;font-size:13px;color:var(--mut);margin-bottom:3px}
+input,select{width:100%;font:inherit;font-size:16px;padding:9px 10px;border:1px solid #cfcfcf;border-radius:3px;background:#fff;color:var(--ink)}
+.out{background:var(--panel);border-left:4px solid var(--pink);padding:18px 20px;align-self:start}
+.r{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)}
+.r:last-of-type{border-bottom:0}
+.r span{color:var(--mut);font-size:14px}
+.r b{font-size:17px;text-align:right}
+.r.key b{color:var(--pink);font-size:20px}
+.note{font-size:12.5px;color:var(--mut);margin:12px 0 0}
+.warn{color:#b3261e}
+footer{font-size:12.5px;color:var(--mut);border-top:1px solid var(--line);margin-top:36px;padding-top:14px}
+@media(max-width:720px){section.on{grid-template-columns:1fr}.form{grid-template-columns:1fr 1fr}}
+@media(max-width:420px){.form{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html">vikas raikwar</a>
+  <a class="back" href="index.html#portfolio">&larr; Back to portfolio</a>
+</header>
+<main>
+  <h1>Plant calculators</h1>
+  <p class="sub">Quick everyday calculations for motors, panels and cabling. Results update as you type.</p>
+  <nav class="tabs" id="tabs">
+    <a href="#motor">Motor load</a>
+    <a href="#pf">Power factor correction</a>
+    <a href="#contactor">Contactor selection</a>
+    <a href="#wire">Wire selection</a>
+    <a href="#loadcell">Load cell &amp; PLC scaling</a>
+    <a href="#analog">PLC analog scaling</a>
+  </nav>
+  <div id="app"></div>
+  <footer>These are rule-of-thumb values for planning. Check the final selection against the manufacturer's catalogue and the applicable IS / IEC standard before installing.</footer>
+</main>
+<script>
+(function(){
+var S3=Math.sqrt(3);
+var $=function(id){return document.getElementById(id)};
+function f(x,d){d=d==null?2:d;return (+x.toFixed(d)).toString()}
+function row(l,v,k){return '<div class="r'+(k?' key':'')+'"><span>'+l+'</span><b>'+v+'</b></div>'}
+function pick(list,x){for(var i=0;i<list.length;i++)if(list[i]>=x)return list[i];return null}
+function toKw(p,u){return u==='HP'?p*0.7457:p}
+var CONT=[9,12,18,25,32,40,50,65,80,95,115,150,185,225,265,330,400,500,630];
+var FUSE=[2,4,6,10,16,20,25,32,40,50,63,80,100,125,160,200,250,315,400,500,630];
+var BANK=[2.5,5,7.5,10,12.5,15,20,25,30,40,50,60,75,100,150,200,300];
+var WIRE=[[1.5,14],[2.5,19],[4,26],[6,34],[10,46],[16,62],[25,80],[35,99],[50,119],[70,151],[95,182],[120,210],[150,240],[185,273],[240,320]];
+
+function flc(p,v,pf,eff,ph){return p*1000/((ph===1?1:S3)*v*pf*eff)}
+
+var SIG={'4-20':[4,20,'mA'],'0-20':[0,20,'mA'],'0-10':[0,10,'V'],'1-5':[1,5,'V'],'0-5':[0,5,'V']};
+var SIGOPT=[['4-20','4-20 mA'],['0-20','0-20 mA'],['0-10','0-10 V'],['1-5','1-5 V'],['0-5','0-5 V']];
+
+var C={
+motor:{title:'Motor load (single-phase / three-phase)',
+ f:[['ph','Supply','s',[['3','3-phase'],['1','1-phase']],'3'],['v','Voltage (V)','n','','415'],
+    ['p','Motor rating','n','','5.5'],['u','Unit','s',[['kW','kW'],['HP','HP']],'kW'],
+    ['pf','Power factor','n','','0.85'],['eff','Efficiency (%)','n','','90'],
+    ['im','Measured current (A), optional','n','','']],
+ run:function(g){
+  var ph=+g.ph,p=toKw(g.p,g.u),eff=g.eff/100;
+  if(!(p>0&&g.v>0&&g.pf>0&&g.pf<=1&&eff>0&&eff<=1))return null;
+  var I=flc(p,g.v,g.pf,eff,ph),k=ph===1?1:S3,h='';
+  h+=row('Full-load current',f(I)+' A',1)+row('Input power',f(p/eff)+' kW')+row('Apparent power',f(p/(eff*g.pf))+' kVA');
+  if(g.im>0){var pct=g.im/I*100,st=pct>100?'<span class="warn">overloaded</span>':pct<40?'lightly loaded':'normal';
+   h+=row('Load on motor',f(pct,1)+'% ('+st+')')+row('Actual input power',f(k*g.v*g.im*g.pf/1000)+' kW');}
+  return h+'<p class="note">I = P x 1000 / (&radic;3 x V x pf x efficiency) for 3-phase; no &radic;3 for 1-phase. Load % assumes the power factor stays at the entered value; it drops at light load.</p>';}},
+pf:{title:'Power factor correction (capacitor kVAR)',
+ f:[['p','Load (kW)','n','','100'],['v','Voltage (V)','n','','415'],
+    ['pf1','Existing power factor','n','','0.78'],['pf2','Target power factor','n','','0.98']],
+ run:function(g){
+  if(!(g.p>0&&g.v>0&&g.pf1>0&&g.pf1<1&&g.pf2>g.pf1&&g.pf2<=1))return g.pf2<=g.pf1?'<p class="warn">Target power factor must be higher than the existing one.</p>':null;
+  var q=g.p*(Math.tan(Math.acos(g.pf1))-Math.tan(Math.acos(g.pf2))),b=pick(BANK,q);
+  var ic=q*1000/(S3*g.v);
+  return row('Capacitor needed',f(q)+' kVAR',1)+row('Next standard bank',b?b+' kVAR':'use multiple banks')
+   +row('Capacitor current (3-phase)',f(ic)+' A')+row('kVA before',f(g.p/g.pf1))+row('kVA after',f(g.p/g.pf2))
+   +row('Line current reduction',f((1-g.pf1/g.pf2)*100,1)+'%')
+   +'<p class="note">kVAR = kW x (tan&phi;1 &minus; tan&phi;2). With harmonic loads (VFDs) use detuned reactor banks. Rated capacitor voltage should be above supply voltage.</p>';}},
+contactor:{title:'Contactor selection (3-phase motor starter)',
+ f:[['p','Motor rating','n','','7.5'],['u','Unit','s',[['kW','kW'],['HP','HP']],'kW'],
+    ['v','Voltage (V)','n','','415'],['pf','Power factor','n','','0.85'],['eff','Efficiency (%)','n','','90'],
+    ['st','Starter type','s',[['dol','DOL'],['sd','Star-delta']],'dol'],
+    ['m','Duty','s',[['1','Normal (AC-3)'],['1.25','Heavy / frequent start']],'1']],
+ run:function(g){
+  var p=toKw(g.p,g.u),eff=g.eff/100;
+  if(!(p>0&&g.v>0&&g.pf>0&&g.pf<=1&&eff>0&&eff<=1))return null;
+  var I=flc(p,g.v,g.pf,eff,3),m=+g.m,h=row('Motor full-load current',f(I)+' A');
+  var fu=pick(FUSE,2.5*I);
+  if(g.st==='dol'){var c=pick(CONT,I*m);
+   h+=row('Contactor (AC-3)',c?c+' A':'above range',1)+row('Overload relay setting',f(I)+' A');}
+  else{var cm=pick(CONT,0.58*I*m),cs=pick(CONT,0.33*I*m);
+   h+=row('Main and delta contactors',cm?cm+' A each':'above range',1)+row('Star contactor',cs?cs+' A':'above range',1)
+    +row('Overload relay setting',f(0.58*I)+' A (in line with delta)');}
+  h+=row('Back-up fuse (gG), approx.',fu?fu+' A':'above range');
+  return h+'<p class="note">Contactor is chosen on AC-3 current, next standard size up. Star-delta windings carry 0.58 x line current (star contactor 0.33 x). Fuse is about 2.5 x FLC; confirm type-2 coordination from the starter maker\'s table.</p>';}},
+wire:{title:'Wire selection (current and voltage drop)',
+ f:[['ph','Supply','s',[['3','3-phase'],['1','1-phase']],'3'],['v','Voltage (V)','n','','415'],
+    ['i','Load current (A)','n','','30'],['l','Cable length (m)','n','','60'],
+    ['mat','Conductor','s',[['cu','Copper'],['al','Aluminium']],'cu'],['dp','Max voltage drop (%)','n','','3'],
+    ['der','Derating factor','n','','0.8']],
+ run:function(g){
+  if(!(g.v>0&&g.i>0&&g.l>0&&g.dp>0&&g.der>0&&g.der<=1))return null;
+  var ph=+g.ph,cu=g.mat==='cu',rho=cu?0.0225:0.0366,af=cu?1:0.78,k=ph===1?2:S3,need=g.i/g.der,rec=null,reqA=null,reqD=null;
+  for(var j=0;j<WIRE.length;j++){var a=WIRE[j][0],amp=WIRE[j][1]*af,vd=k*g.i*g.l*rho/a;
+   if(!cu&&a<16)continue;
+   if(reqA===null&&amp>=need)reqA=a;
+   if(reqD===null&&vd/g.v*100<=g.dp)reqD=a;}
+  if(reqA===null||reqD===null)return '<p class="warn">Beyond the single-core table here. Use parallel runs or a larger conductor.</p>';
+  rec=Math.max(reqA,reqD);
+  var o=WIRE.filter(function(w){return w[0]===rec})[0],vd=k*g.i*g.l*rho/rec;
+  return row('Recommended size',rec+' mm\u00b2 '+(cu?'Cu':'Al'),1)+row('Governed by',reqD>reqA?'voltage drop':reqA>reqD?'current rating':'both')
+   +row('Size for current only',reqA+' mm\u00b2')+row('Size for voltage drop only',reqD+' mm\u00b2')
+   +row('Cable rating (approx.)',f(o[1]*af,0)+' A, need '+f(need,1)+' A')+row('Voltage drop',f(vd)+' V ('+f(vd/g.v*100)+'%)')
+   +'<p class="note">Drop = '+(ph===1?'2':'&radic;3')+' x I x L x &rho; / A, resistive only, with hot-conductor resistivity. Current ratings are conservative values for PVC cable in conduit; use the cable maker\'s chart for your installation method and ambient.</p>';}},
+loadcell:{title:'1. Load cell mV output (theoretical)',
+ f:[['cap','Total capacity (kg)','n','','2000'],['sens','Sensitivity (mV/V)','n','','2'],
+    ['v','Excitation voltage (V)','n','','10'],['w','Applied weight (kg)','n','','500']],
+ run:function(g){
+  if(!(g.cap>0&&g.sens>0&&g.v>0&&g.w>=0))return null;
+  var mx=g.sens*g.v,cur=g.w/g.cap*mx;
+  return row('Output at applied weight',f(cur,3)+' mV',1)+row('Max output (full capacity)',f(mx)+' mV',1)
+   +row('Load on cell',f(g.w/g.cap*100,1)+'%')+row('Output per kg',f(mx/g.cap,4)+' mV')
+   +(g.w>g.cap?'<p class="warn">Applied weight is above the rated capacity.</p>':'')
+   +'<p class="note">Output = (weight / capacity) x sensitivity x excitation. For several cells summed in a junction box, use their combined capacity.</p>';}},
+plcscale:{into:'loadcell',title:'2. PLC 2-point scaling (digital counts to kg)',
+ f:[['z','Zero count (empty hopper)','n','','1200'],['tw','Test weight used (kg)','n','','500'],
+    ['sp','Span count (at test weight)','n','','6200'],['live','Live PLC count','n','','4000']],
+ run:function(g){
+  if(!(g.tw>0&&!isNaN(g.z)&&!isNaN(g.sp)&&!isNaN(g.live)))return null;
+  if(!(g.sp>g.z))return '<p class="warn">Span count must be greater than zero count.</p>';
+  var sf=g.tw/(g.sp-g.z),wt=(g.live-g.z)*sf,neg=wt<0;
+  if(neg)wt=0;
+  return row('Live weight',f(wt)+' kg',1)+row('Scale factor',f(sf,4)+' kg/count',1)
+   +row('Counts per kg',f(1/sf,3))+row('Span range',f(g.sp-g.z,0)+' counts')
+   +(neg?'<p class="note">Live count is below zero count, so weight is shown as 0.</p>':'')
+   +'<p class="note">Weight = (live count &minus; zero count) x test weight / (span count &minus; zero count). Calibrate with the test weight as close to the working load as you can.</p>';}},
+analog:{title:'1. Analog input scaling (PLC count to engineering value)',
+ f:[['sig','Signal type','s',SIGOPT,'4-20'],['raw','Live raw count','n','','2000'],
+    ['c0','Count at signal minimum','n','','0'],['c1','Count at signal maximum','n','','4000'],
+    ['e0','Engineering minimum','n','','0'],['e1','Engineering maximum','n','','100']],
+ run:function(g){
+  if(isNaN(g.raw)||isNaN(g.c0)||isNaN(g.c1)||isNaN(g.e0)||isNaN(g.e1))return null;
+  var s=SIG[g.sig],dc=g.c1-g.c0;
+  if(dc===0)return '<p class="warn">Count at maximum must differ from count at minimum.</p>';
+  var fr=(g.raw-g.c0)/dc,ev=g.e0+fr*(g.e1-g.e0),sg=s[0]+fr*(s[1]-s[0]);
+  var h=row('Engineering value',f(ev,3),1)+row('Signal at input',f(sg,3)+' '+s[2],1)+row('Position in span',f(fr*100,1)+'%')
+   +row('Resolution',f(Math.abs((g.e1-g.e0)/dc),4)+' units/count');
+  if(fr<-0.0125)h+='<p class="warn">'+(s[0]>0?'Signal is below the live-zero minimum. Check for a wire break or sensor fault.':'Reading is below the signal minimum.')+'</p>';
+  else if(fr>1.0125)h+='<p class="warn">Reading is above the signal maximum.</p>';
+  return h+'<p class="note">Value = Emin + (count &minus; count@min) x (Emax &minus; Emin) / (count@max &minus; count@min). Enter the counts your analog module reads at the minimum and maximum signal (for example 0 and 4000, or 0 and 16000, depending on the module and range).</p>';}},
+analogout:{into:'analog',title:'2. Analog output scaling (engineering value to PLC count)',
+ f:[['sig','Signal type','s',SIGOPT,'4-20'],['ev','Value to output','n','','50'],
+    ['c0','Count at signal minimum','n','','0'],['c1','Count at signal maximum','n','','4000'],
+    ['e0','Engineering minimum','n','','0'],['e1','Engineering maximum','n','','100']],
+ run:function(g){
+  if(isNaN(g.ev)||isNaN(g.c0)||isNaN(g.c1)||isNaN(g.e0)||isNaN(g.e1))return null;
+  var s=SIG[g.sig],de=g.e1-g.e0;
+  if(de===0)return '<p class="warn">Engineering maximum must differ from engineering minimum.</p>';
+  var fr=(g.ev-g.e0)/de,cnt=g.c0+fr*(g.c1-g.c0),sg=s[0]+fr*(s[1]-s[0]);
+  var h=row('Count to write',f(cnt,0),1)+row('Output signal',f(sg,3)+' '+s[2],1)+row('Position in span',f(fr*100,1)+'%');
+  if(fr<0||fr>1)h+='<p class="warn">Value is outside the engineering range, so the output will saturate at its limit.</p>';
+  return h+'<p class="note">Count = count@min + (value &minus; Emin) x (count@max &minus; count@min) / (Emax &minus; Emin). Round to a whole number before writing it to the analog output register.</p>';}}
+};
+
+var app=$('app'),tabs=[].slice.call($('tabs').querySelectorAll('a'));
+Object.keys(C).forEach(function(key){
+  var c=C[key],s=c.into?$(c.into):document.createElement('section'),blk=document.createElement('div');
+  if(!c.into){s.id=key;app.appendChild(s);}
+  blk.className='blk';
+  var h='<h2>'+c.title+'</h2><div class="form">';
+  c.f.forEach(function(x){
+    var id=key+'-'+x[0];
+    h+='<div><label for="'+id+'">'+x[1]+'</label>';
+    if(x[2]==='s'){h+='<select id="'+id+'">'+x[3].map(function(o){return '<option value="'+o[0]+'"'+(o[0]===x[4]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>'}
+    else h+='<input id="'+id+'" type="number" inputmode="decimal" step="any" min="0" value="'+x[4]+'">';
+    h+='</div>';});
+  blk.innerHTML=h+'</div><div class="out" id="out-'+key+'" aria-live="polite"></div>';
+  s.appendChild(blk);
+  blk.addEventListener('input',function(e){
+    if((key==='wire'||key==='motor')&&e.target.id===key+'-ph')$(key+'-v').value=e.target.value==='1'?'230':'415';
+    calc(key);});
+  calc(key);
+});
+function calc(key){
+  var c=C[key],g={};
+  c.f.forEach(function(x){var el=$(key+'-'+x[0]);g[x[0]]=x[2]==='s'?el.value:parseFloat(el.value)});
+  var r=c.run(g);
+  $('out-'+key).innerHTML=r||'<p class="note">Enter all values to see the result.</p>';
+}
+function route(){
+  var h=(location.hash||'#motor').slice(1);if(h==='plcscale')h='loadcell';if(!C[h]||C[h].into)h='motor';
+  [].forEach.call(document.querySelectorAll('section'),function(s){s.classList.toggle('on',s.id===h)});
+  tabs.forEach(function(a){a.classList.toggle('on',a.getAttribute('href')==='#'+h)});
+}
+window.addEventListener('hashchange',route);route();
+})();
+</script>
+</body>
+</html>
